@@ -1,0 +1,6 @@
+{
+  "appTitle": "interview_movie_test",
+  "@appTitle": {
+    "description": "The title of the application"
+  }
+}
