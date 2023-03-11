@@ -12,6 +12,10 @@ class MovieListScreen extends StatefulWidget {
 }
 
 class _MovieListScreenState extends State<MovieListScreen> {
+  bool _isLoadingMore = false;
+
+  final ScrollController _scrollController = ScrollController();
+
   @override
   Widget build(BuildContext context) {
     final movies = Provider.of<MovieProvider>(context).movies;
@@ -23,6 +27,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: GridView.builder(
+          controller: _scrollController,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             childAspectRatio: 2 / 3,
@@ -31,8 +36,14 @@ class _MovieListScreenState extends State<MovieListScreen> {
           ),
           itemCount: movies.length,
           itemBuilder: (ctx, index) {
-            final movie = movies[index];
-            return MovieItem(movie: movie);
+            if (index < movies.length) {
+              final movie = movies[index];
+              return MovieItem(movie: movie);
+            } else {
+              return _isLoadingMore
+                  ? const CircularProgressIndicator()
+                  : const SizedBox.shrink();
+            }
           },
         ),
       ),
@@ -40,8 +51,40 @@ class _MovieListScreenState extends State<MovieListScreen> {
   }
 
   @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
-    Provider.of<MovieProvider>(context, listen: false).fetchMovies();
+    _scrollController.addListener(_scrollListener);
+    Provider.of<MovieProvider>(context, listen: false).fetchMovies(1);
+  }
+
+  Future<void> _loadMoreMovies() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final pageNumber =
+        Provider.of<MovieProvider>(context, listen: false).movies.length ~/ 20 +
+            1;
+    await Provider.of<MovieProvider>(context, listen: false)
+        .fetchMovies(pageNumber);
+
+    setState(() {
+      _isLoadingMore = false;
+    });
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
+      _loadMoreMovies();
+    }
   }
 }
